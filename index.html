@@ -44,6 +44,11 @@
     <div id="root"></div>
 
     <script type="module">
+        // Safe shim for process.env in browser environments
+        if (typeof process === 'undefined') {
+            window.process = { env: { API_KEY: '' } };
+        }
+
         import React, { useState, useEffect, useCallback } from 'react';
         import { createRoot } from 'react-dom/client';
         import { GoogleGenAI, Type } from "@google/genai";
@@ -171,19 +176,20 @@
             setLoading(true);
             setError(null);
             try {
+              // Standard initialization as per SDK rules
               const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
               const itemsStr = Array.from(selected).join(", ");
-              const prompt = `You are a professional Maharashtrian nutritionist. Create a 50-25-25 thali rule meal plan for a 50-year-old mother with cholesterol and diabetes. Use standard Maharashtrian dishes. 
-              Available ingredients: ${itemsStr || "all standard Maharashtrian grains and vegetables"}. 
-              Instructions:
-              1. 50% must be fiber/veggies/fruits.
-              2. 25% protein.
-              3. 25% carbs (Low GI like Jowar/Bajra/Nachni).
-              4. All text in output must be in Marathi.
-              5. Low oil, no sugar.`;
+              const prompt = `You are a specialized Maharashtrian clinical nutritionist. Create a 1-day meal plan for a 50-year-old female patient with high cholesterol and type 2 diabetes. 
+              Strictly follow the "50-25-25" Thali rule: 50% fiber/vegetables, 25% protein, 25% complex carbohydrates.
+              Available ingredients: ${itemsStr || "standard Maharashtrian pantry items like Jowar, Nachni, Moong, Methi"}.
+              Rules:
+              - Language: Marathi (मराठी)
+              - 4 meals: Breakfast, Lunch, Evening Snack, Dinner
+              - Minimal oil, Zero sugar
+              - Focus on steamed or roasted Maharashtrian traditional preparations.`;
 
               const response = await ai.models.generateContent({
-                model: "gemini-3-pro-preview",
+                model: "gemini-3-flash-preview",
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: { 
                     responseMimeType: "application/json", 
@@ -191,14 +197,16 @@
                 }
               });
 
-              if (response.text) {
+              if (response && response.text) {
                 const parsed = JSON.parse(response.text);
                 setMealPlan(parsed);
+              } else {
+                throw new Error("Invalid response from AI");
               }
               window.scrollTo({ top: 0, behavior: 'smooth' });
             } catch (err) {
-              console.error("AI Error:", err);
-              setError(`नियोजन करताना अडचण आली: ${err.message || 'Unknown error'}. कृपया पुन्हा प्रयत्न करा.`);
+              console.error("Meal Planner Error:", err);
+              setError(`नियोजन करताना अडचण आली. कृपया तुमचे इंटरनेट तपासा आणि पुन्हा प्रयत्न करा. (Error: ${err.message})`);
             } finally {
               setLoading(false);
             }
@@ -216,6 +224,7 @@
             <div className="min-h-screen flex flex-col items-center justify-center p-10 bg-stone-50">
               <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mb-4"></div>
               <h2 className="text-xl font-serif font-bold text-stone-800 text-center">आईसाठी खास स्वास्थ्य थाळी तयार होत आहे...</h2>
+              <p className="text-stone-400 text-sm mt-2">आहारतज्ज्ञांचे मार्गदर्शन घेतले जात आहे...</p>
             </div>
           `;
 
@@ -235,15 +244,16 @@
               </nav>
 
               ${error && html`
-                <div className="bg-red-50 text-red-700 p-4 rounded-2xl mb-8 text-center text-sm border border-red-100">
-                  ${error} <button onClick=${fetchPlan} className="underline font-bold ml-2">पुन्हा प्रयत्न करा</button>
+                <div className="bg-red-50 text-red-700 p-6 rounded-[24px] mb-8 text-center text-sm border border-red-100 shadow-sm">
+                  <p className="mb-4">${error}</p>
+                  <button onClick=${fetchPlan} className="bg-red-600 text-white px-6 py-2 rounded-xl font-bold active:scale-95 transition-all">पुन्हा प्रयत्न करा</button>
                 </div>
               `}
 
               ${activeTab === 'plan' && html`
                 <div>
                   <section className="bg-white rounded-[32px] p-6 shadow-sm border border-stone-100 mb-8">
-                    <h3 className="text-xl font-bold mb-4 font-serif">🏠 काय उपलब्ध आहे?</h3>
+                    <h3 className="text-xl font-bold mb-4 font-serif">🏠 स्वयंपाकघरात काय आहे?</h3>
                     <div className="space-y-6">
                       ${Object.entries(INVENTORY).map(([key, cat]) => html`
                         <div key=${key}>
@@ -257,7 +267,7 @@
                           </div>
                         </div>
                       `)}
-                      <button onClick=${fetchPlan} className="w-full bg-stone-900 text-white py-4 rounded-2xl font-bold text-lg shadow-xl active:scale-95 hover:bg-stone-800 transition-all">✨ थाळी अपडेट करा</button>
+                      <button onClick=${fetchPlan} className="w-full bg-stone-900 text-white py-4 rounded-2xl font-bold text-lg shadow-xl active:scale-95 hover:bg-stone-800 transition-all">✨ नवीन आहार बनवा</button>
                     </div>
                   </section>
 

@@ -67,7 +67,7 @@
           type: Type.OBJECT,
           properties: {
             name: { type: Type.STRING },
-            category: { type: Type.STRING, enum: ['veggie', 'protein', 'carb', 'fruit', 'other'] },
+            category: { type: Type.STRING },
             description: { type: Type.STRING },
             recipe: { type: Type.STRING }
           },
@@ -171,13 +171,20 @@
             setLoading(true);
             setError(null);
             try {
-              const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+              const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
               const itemsStr = Array.from(selected).join(", ");
-              const prompt = `तुम्ही एक महाराष्ट्रीयन आहारतज्ज्ञ आहात. ५० वर्षांच्या आईसाठी ज्यांना कोलेस्ट्रॉल आणि मधुमेह आहे, त्यांच्यासाठी १ दिवसाचा '५०-२५-२५' थाळी नियम पाळून मील प्लॅन तयार करा. उपलब्ध साहित्य: ${itemsStr || "घरातील सर्व महाराष्ट्रीयन धान्य आणि भाज्या"}. सर्व माहिती मराठीत असावी. ५०% भाज्या, २५% प्रथिने आणि २५% कार्बोहायड्रेट्स या प्रमाणात पदार्थ निवडा.`;
+              const prompt = `You are a professional Maharashtrian nutritionist. Create a 50-25-25 thali rule meal plan for a 50-year-old mother with cholesterol and diabetes. Use standard Maharashtrian dishes. 
+              Available ingredients: ${itemsStr || "all standard Maharashtrian grains and vegetables"}. 
+              Instructions:
+              1. 50% must be fiber/veggies/fruits.
+              2. 25% protein.
+              3. 25% carbs (Low GI like Jowar/Bajra/Nachni).
+              4. All text in output must be in Marathi.
+              5. Low oil, no sugar.`;
 
               const response = await ai.models.generateContent({
-                model: "gemini-3-flash-preview",
-                contents: prompt,
+                model: "gemini-3-pro-preview",
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: { 
                     responseMimeType: "application/json", 
                     responseSchema: MEAL_PLAN_SCHEMA
@@ -185,12 +192,13 @@
               });
 
               if (response.text) {
-                setMealPlan(JSON.parse(response.text));
+                const parsed = JSON.parse(response.text);
+                setMealPlan(parsed);
               }
               window.scrollTo({ top: 0, behavior: 'smooth' });
             } catch (err) {
-              console.error(err);
-              setError("नियोजन करताना अडचण आली, पुन्हा प्रयत्न करा.");
+              console.error("AI Error:", err);
+              setError(`नियोजन करताना अडचण आली: ${err.message || 'Unknown error'}. कृपया पुन्हा प्रयत्न करा.`);
             } finally {
               setLoading(false);
             }

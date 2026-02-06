@@ -8,6 +8,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
     
+    <script>
+        // Global shim to prevent "process is not defined" errors in non-Node environments
+        window.process = window.process || { env: { API_KEY: "" } };
+    </script>
+
     <script type="importmap">
     {
       "imports": {
@@ -38,17 +43,13 @@
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .custom-shadow { box-shadow: 0 10px 40px -10px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="module">
-        // Safe shim for process.env in browser environments
-        if (typeof process === 'undefined') {
-            window.process = { env: { API_KEY: '' } };
-        }
-
         import React, { useState, useEffect, useCallback } from 'react';
         import { createRoot } from 'react-dom/client';
         import { GoogleGenAI, Type } from "@google/genai";
@@ -58,36 +59,14 @@
         const { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } = Recharts;
         const html = htm.bind(React.createElement);
 
-        // --- CONSTANTS & CONFIG ---
-        const COLORS = { veggie: '#10b981', fruit: '#ec4899', protein: '#f97316', carb: '#eab308', other: '#94a3b8' };
-
+        // --- CONSTANTS ---
+        const COLORS = { veggie: '#10b981', protein: '#f97316', carb: '#eab308' };
+        
         const INVENTORY = {
           rashan: { title: "धान्य", items: ["ज्वारी", "बाजरी", "नाचणी", "गहू", "हातसडीचा तांदूळ", "वरई"] },
           pulses: { title: "कडधान्ये/डाळी", items: ["मटकी", "मूग", "तूर डाळ", "हरभरा", "कुळीथ", "वाटाणा"] },
           veggies: { title: "भाज्या", items: ["मेथी", "पालक", "दोडका", "भेंडी", "दुधी", "कोबी", "कारले", "गवार", "वांगी"] },
           other: { title: "इतर", items: ["दही", "ताक", "लसूण", "आले", "मेथी दाणे", "आमसूल"] }
-        };
-
-        const MEAL_ITEM_SCHEMA = {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING },
-            category: { type: Type.STRING },
-            description: { type: Type.STRING },
-            recipe: { type: Type.STRING }
-          },
-          required: ["name", "category", "description", "recipe"]
-        };
-
-        const MEAL_SCHEMA = {
-          type: Type.OBJECT,
-          properties: {
-            time: { type: Type.STRING },
-            items: { type: Type.ARRAY, items: MEAL_ITEM_SCHEMA },
-            healthTip: { type: Type.STRING },
-            nutritionFocus: { type: Type.STRING }
-          },
-          required: ["time", "items", "healthTip", "nutritionFocus"]
         };
 
         const MEAL_PLAN_SCHEMA = {
@@ -96,10 +75,10 @@
             meals: {
               type: Type.OBJECT,
               properties: {
-                breakfast: MEAL_SCHEMA,
-                lunch: MEAL_SCHEMA,
-                eveningSnack: MEAL_SCHEMA,
-                dinner: MEAL_SCHEMA
+                breakfast: { type: Type.OBJECT, properties: { time: {type: Type.STRING}, items: {type: Type.ARRAY, items: {type: Type.OBJECT, properties: {name: {type: Type.STRING}, category: {type: Type.STRING}, description: {type: Type.STRING}}}}, healthTip: {type: Type.STRING}, nutritionFocus: {type: Type.STRING} } },
+                lunch: { type: Type.OBJECT, properties: { time: {type: Type.STRING}, items: {type: Type.ARRAY, items: {type: Type.OBJECT, properties: {name: {type: Type.STRING}, category: {type: Type.STRING}, description: {type: Type.STRING}}}}, healthTip: {type: Type.STRING}, nutritionFocus: {type: Type.STRING} } },
+                eveningSnack: { type: Type.OBJECT, properties: { time: {type: Type.STRING}, items: {type: Type.ARRAY, items: {type: Type.OBJECT, properties: {name: {type: Type.STRING}, category: {type: Type.STRING}, description: {type: Type.STRING}}}}, healthTip: {type: Type.STRING}, nutritionFocus: {type: Type.STRING} } },
+                dinner: { type: Type.OBJECT, properties: { time: {type: Type.STRING}, items: {type: Type.ARRAY, items: {type: Type.OBJECT, properties: {name: {type: Type.STRING}, category: {type: Type.STRING}, description: {type: Type.STRING}}}}, healthTip: {type: Type.STRING}, nutritionFocus: {type: Type.STRING} } }
               },
               required: ["breakfast", "lunch", "eveningSnack", "dinner"]
             }
@@ -137,28 +116,27 @@
 
           return html`
             <div className="mb-8 animate-in">
-              <div className="flex items-center gap-4 mb-4">
-                <span className="text-4xl">${icons[type]}</span>
+              <div className="flex items-center gap-4 mb-4 px-2">
+                <span className="text-4xl filter drop-shadow-sm">${icons[type]}</span>
                 <div>
-                  <h3 className="text-2xl font-serif font-bold text-stone-900">${labels[type]}</h3>
-                  <p className="text-stone-400 font-bold text-sm uppercase tracking-tighter">${meal.time}</p>
+                  <h3 className="text-2xl font-serif font-bold text-stone-900 leading-tight">${labels[type]}</h3>
+                  <p className="text-stone-400 font-bold text-[10px] uppercase tracking-widest">${meal.time}</p>
                 </div>
               </div>
-              <div className="bg-white rounded-[32px] p-6 shadow-sm border border-stone-100">
-                <div className="mb-4 inline-block bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold border border-emerald-100">
-                  ${meal.nutritionFocus}
+              <div className="bg-white rounded-[32px] p-6 custom-shadow border border-stone-100">
+                <div className="mb-4 inline-block bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-[11px] font-bold border border-emerald-100">
+                  🎯 ${meal.nutritionFocus}
                 </div>
                 <div className="space-y-4">
                   ${meal.items?.map((item, idx) => html`
-                    <div key=${idx} className=${`p-4 rounded-2xl border-l-4 ${item.category === 'veggie' ? 'border-emerald-500 bg-emerald-50' : item.category === 'protein' ? 'border-orange-500 bg-orange-50' : 'border-yellow-500 bg-yellow-50'}`}>
+                    <div key=${idx} className=${`p-4 rounded-2xl border-l-4 ${item.category === 'veggie' ? 'border-emerald-500 bg-emerald-50/50' : item.category === 'protein' ? 'border-orange-500 bg-orange-50/50' : 'border-yellow-500 bg-yellow-50/50'}`}>
                       <h4 className="font-bold text-stone-800 text-lg mb-1">${item.name}</h4>
-                      <p className="text-stone-600 text-sm mb-2">${item.description}</p>
-                      ${item.recipe && html`<p className="text-xs text-stone-400 italic mt-2 pt-2 border-t border-stone-200"><span className="font-bold">कृती:</span> ${item.recipe}</p>`}
+                      <p className="text-stone-600 text-sm leading-relaxed">${item.description}</p>
                     </div>
                   `)}
                 </div>
-                <div className="mt-5 p-4 bg-blue-50 rounded-2xl text-blue-800 text-sm">
-                  💡 <b>टिप:</b> ${meal.healthTip}
+                <div className="mt-5 p-4 bg-blue-50/80 rounded-2xl text-blue-900 text-sm border border-blue-100">
+                  <span className="font-bold">💡 आरोग्य टिप:</span> ${meal.healthTip}
                 </div>
               </div>
             </div>
@@ -167,52 +145,83 @@
 
         const App = () => {
           const [activeTab, setActiveTab] = useState('plan');
-          const [loading, setLoading] = useState(true);
+          const [loading, setLoading] = useState(false);
           const [mealPlan, setMealPlan] = useState(null);
           const [error, setError] = useState(null);
           const [selected, setSelected] = useState(new Set());
+          const [hasApiKey, setHasApiKey] = useState(false);
+          const [manualKey, setManualKey] = useState(process.env.API_KEY || '');
+
+          useEffect(() => {
+            const checkKey = async () => {
+              if (manualKey) {
+                window.process.env.API_KEY = manualKey;
+                setHasApiKey(true);
+                return;
+              }
+
+              if (window.aistudio) {
+                const exists = await window.aistudio.hasSelectedApiKey();
+                setHasApiKey(exists);
+              } else {
+                setHasApiKey(!!process.env.API_KEY);
+              }
+            };
+            checkKey();
+          }, [manualKey]);
+
+          const handleOpenKey = async () => {
+            if (window.aistudio) {
+              await window.aistudio.openSelectKey();
+              setHasApiKey(true);
+            } else {
+                setActiveTab('settings');
+            }
+          };
 
           const fetchPlan = useCallback(async () => {
+            const currentKey = manualKey || process.env.API_KEY;
+            if (!currentKey) {
+                setError("API की गहाळ आहे. कृपया 'सेटिंग्स' मध्ये जाऊन की एंटर करा.");
+                return;
+            }
+            
             setLoading(true);
             setError(null);
             try {
-              // Standard initialization as per SDK rules
-              const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+              const ai = new GoogleGenAI({ apiKey: currentKey });
               const itemsStr = Array.from(selected).join(", ");
-              const prompt = `You are a specialized Maharashtrian clinical nutritionist. Create a 1-day meal plan for a 50-year-old female patient with high cholesterol and type 2 diabetes. 
-              Strictly follow the "50-25-25" Thali rule: 50% fiber/vegetables, 25% protein, 25% complex carbohydrates.
-              Available ingredients: ${itemsStr || "standard Maharashtrian pantry items like Jowar, Nachni, Moong, Methi"}.
-              Rules:
-              - Language: Marathi (मराठी)
-              - 4 meals: Breakfast, Lunch, Evening Snack, Dinner
-              - Minimal oil, Zero sugar
-              - Focus on steamed or roasted Maharashtrian traditional preparations.`;
+              const prompt = `You are a world-class Maharashtrian clinical dietitian. 
+              Create a therapeutic 1-day meal plan for a 50-year-old mother managing both high cholesterol and Type 2 Diabetes.
+              Core Rule: The 50-25-25 Thali Rule (50% fiber, 25% protein, 25% complex carbs).
+              Ingredients: ${itemsStr || "standard Maharashtrian ingredients"}.
+              Constraint: No sugar, Minimal oil. Language: Marathi (मराठी). Traditional Maharashtrian dishes only.`;
 
               const response = await ai.models.generateContent({
-                model: "gemini-3-flash-preview",
+                model: "gemini-3-pro-preview",
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: { 
                     responseMimeType: "application/json", 
-                    responseSchema: MEAL_PLAN_SCHEMA
+                    responseSchema: MEAL_PLAN_SCHEMA,
+                    thinkingConfig: { thinkingBudget: 2000 }
                 }
               });
 
               if (response && response.text) {
-                const parsed = JSON.parse(response.text);
-                setMealPlan(parsed);
-              } else {
-                throw new Error("Invalid response from AI");
+                setMealPlan(JSON.parse(response.text.trim()));
               }
               window.scrollTo({ top: 0, behavior: 'smooth' });
             } catch (err) {
-              console.error("Meal Planner Error:", err);
-              setError(`नियोजन करताना अडचण आली. कृपया तुमचे इंटरनेट तपासा आणि पुन्हा प्रयत्न करा. (Error: ${err.message})`);
+              console.error(err);
+              setError(`नियोजन करताना अडचण आली: ${err.message}. पुन्हा प्रयत्न करा.`);
             } finally {
               setLoading(false);
             }
-          }, [selected]);
+          }, [selected, manualKey]);
 
-          useEffect(() => { fetchPlan(); }, []);
+          useEffect(() => {
+            if (hasApiKey) fetchPlan();
+          }, [hasApiKey]);
 
           const toggle = (item) => {
             const next = new Set(selected);
@@ -220,59 +229,77 @@
             setSelected(next);
           };
 
+          if (!hasApiKey && activeTab !== 'settings') return html`
+            <div className="min-h-screen flex flex-col items-center justify-center p-8 bg-stone-50 text-center animate-in">
+              <div className="bg-white p-10 rounded-[40px] shadow-2xl border border-stone-100 max-w-sm">
+                <div className="text-6xl mb-6">🍛</div>
+                <h2 className="text-2xl font-serif font-bold text-stone-900 mb-4">स्वास्थ्य थाळी सुरू करा</h2>
+                <p className="text-stone-600 mb-8 text-sm leading-relaxed">
+                  आईच्या उत्तम आरोग्यासाठी आहार नियोजन सुरू करण्यापूर्वी, कृपया तुमची Google API की एंटर करा.
+                </p>
+                <div className="space-y-4">
+                  <button onClick=${handleOpenKey} className="w-full bg-orange-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-200 active:scale-95 transition-all">
+                    ${window.aistudio ? 'API Key निवडा' : 'API Key एंटर करा'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+
           if (loading) return html`
             <div className="min-h-screen flex flex-col items-center justify-center p-10 bg-stone-50">
-              <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mb-4"></div>
-              <h2 className="text-xl font-serif font-bold text-stone-800 text-center">आईसाठी खास स्वास्थ्य थाळी तयार होत आहे...</h2>
-              <p className="text-stone-400 text-sm mt-2">आहारतज्ज्ञांचे मार्गदर्शन घेतले जात आहे...</p>
+              <div className="relative mb-6">
+                <div className="w-20 h-20 border-8 border-orange-100 border-t-orange-600 rounded-full animate-spin"></div>
+                <div className="absolute inset-0 flex items-center justify-center text-2xl">🥣</div>
+              </div>
+              <h2 className="text-2xl font-serif font-bold text-stone-800 text-center">आईसाठी पोषणतज्ज्ञ <br/>आहार ठरवत आहेत...</h2>
             </div>
           `;
 
           return html`
-            <div className="max-w-lg mx-auto px-4 py-8 pb-24">
+            <div className="max-w-lg mx-auto px-4 py-8 pb-32">
               <header className="text-center mb-8">
-                <h1 className="text-4xl font-serif font-bold text-stone-900 mb-2">आईची स्वास्थ्य थाळी</h1>
-                <p className="text-emerald-700 text-xs font-bold uppercase tracking-widest">कोलेस्ट्रॉल आणि मधुमेह व्यवस्थापन</p>
+                <h1 className="text-5xl font-serif font-bold text-stone-900 mb-2 tracking-tight">आईची थाळी</h1>
+                <p className="text-emerald-700 text-[11px] font-black uppercase tracking-[0.2em]">Health & Longevity</p>
               </header>
 
-              <nav className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-stone-200 mb-8 sticky top-4 z-50">
-                ${['plan', 'tips', 'stats'].map(t => html`
-                  <button key=${t} onClick=${() => setActiveTab(t)} className=${`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === t ? 'bg-orange-600 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}>
-                    ${t === 'plan' ? 'आजचा आहार' : t === 'tips' ? 'आरोग्य टिप्स' : 'नियम'}
+              <nav className="flex bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-sm border border-stone-200 mb-8 sticky top-4 z-50 overflow-x-auto">
+                ${['plan', 'tips', 'stats', 'settings'].map(t => html`
+                  <button key=${t} onClick=${() => setActiveTab(t)} className=${`flex-1 min-w-[80px] py-3 rounded-xl font-bold text-[10px] transition-all uppercase ${activeTab === t ? 'bg-orange-600 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}>
+                    ${t === 'plan' ? 'आहार' : t === 'tips' ? 'मंत्र' : t === 'stats' ? 'नियम' : 'सेटिंग्स'}
                   </button>
                 `)}
               </nav>
 
               ${error && html`
-                <div className="bg-red-50 text-red-700 p-6 rounded-[24px] mb-8 text-center text-sm border border-red-100 shadow-sm">
-                  <p className="mb-4">${error}</p>
-                  <button onClick=${fetchPlan} className="bg-red-600 text-white px-6 py-2 rounded-xl font-bold active:scale-95 transition-all">पुन्हा प्रयत्न करा</button>
+                <div className="bg-red-50 text-red-800 p-6 rounded-[32px] mb-8 text-center text-sm border border-red-100 shadow-sm">
+                  <p className="mb-4 font-medium">${error}</p> 
+                  <button onClick=${fetchPlan} className="bg-red-600 text-white px-8 py-2 rounded-xl font-bold active:scale-95 transition-all">पुन्हा प्रयत्न करा</button>
                 </div>
               `}
 
               ${activeTab === 'plan' && html`
-                <div>
-                  <section className="bg-white rounded-[32px] p-6 shadow-sm border border-stone-100 mb-8">
-                    <h3 className="text-xl font-bold mb-4 font-serif">🏠 स्वयंपाकघरात काय आहे?</h3>
+                <div className="animate-in">
+                  <section className="bg-white rounded-[40px] p-8 custom-shadow border border-stone-100 mb-10">
+                    <h3 className="text-xl font-bold mb-6 font-serif flex items-center gap-2">🧺 किचनमध्ये काय आहे?</h3>
                     <div className="space-y-6">
                       ${Object.entries(INVENTORY).map(([key, cat]) => html`
                         <div key=${key}>
-                          <p className="text-[10px] font-black text-stone-300 uppercase mb-2">${cat.title}</p>
+                          <p className="text-[9px] font-black text-stone-400 uppercase tracking-widest mb-3">${cat.title}</p>
                           <div className="flex flex-wrap gap-2">
                             ${cat.items.map(item => html`
-                              <button key=${item} onClick=${() => toggle(item)} className=${`px-3 py-1.5 rounded-xl border text-sm font-semibold transition-all ${selected.has(item) ? 'bg-orange-600 text-white border-orange-600 shadow-sm' : 'bg-stone-50 text-stone-600 border-stone-200 hover:border-orange-200'}`}>
+                              <button key=${item} onClick=${() => toggle(item)} className=${`px-4 py-2 rounded-2xl border text-sm font-bold transition-all ${selected.has(item) ? 'bg-orange-600 text-white border-orange-600 shadow-md' : 'bg-stone-50 text-stone-500 border-stone-200'}`}>
                                 ${item}
                               </button>
                             `)}
                           </div>
                         </div>
                       `)}
-                      <button onClick=${fetchPlan} className="w-full bg-stone-900 text-white py-4 rounded-2xl font-bold text-lg shadow-xl active:scale-95 hover:bg-stone-800 transition-all">✨ नवीन आहार बनवा</button>
+                      <button onClick=${fetchPlan} className="w-full bg-stone-900 text-white py-5 rounded-[24px] font-bold text-lg shadow-xl active:scale-95 transition-all mt-4">✨ नियोजन करा</button>
                     </div>
                   </section>
-
                   ${mealPlan?.meals && html`
-                    <div className="space-y-4">
+                    <div className="space-y-2">
                       <${ThaliCard} meal=${mealPlan.meals.breakfast} type="breakfast" />
                       <${ThaliCard} meal=${mealPlan.meals.lunch} type="lunch" />
                       <${ThaliCard} meal=${mealPlan.meals.eveningSnack} type="eveningSnack" />
@@ -283,49 +310,54 @@
               `}
 
               ${activeTab === 'tips' && html`
-                <div className="space-y-6">
-                  <div className="bg-white p-6 rounded-[32px] border-t-8 border-emerald-500 shadow-sm">
-                    <h4 className="text-xl font-bold text-emerald-800 mb-4 font-serif">❤️ कोलेस्ट्रॉलसाठी</h4>
-                    <ul className="space-y-3 text-stone-600 text-sm">
-                      <li className="flex gap-2"><span>✅</span> रोजच्या आहारात लसणाच्या २ पाकळ्या कोमट पाण्यासोबत घ्या.</li>
-                      <li className="flex gap-2"><span>✅</span> ओला नारळ आणि शेंगदाण्याचा वापर ५०% कमी करा.</li>
-                      <li className="flex gap-2"><span>✅</span> तेलाऐवजी भाजलेले किंवा उकडलेले पदार्थ जास्त खा.</li>
-                    </ul>
-                  </div>
-                  <div className="bg-white p-6 rounded-[32px] border-t-8 border-orange-500 shadow-sm">
-                    <h4 className="text-xl font-bold text-orange-800 mb-4 font-serif">🩸 मधुमेहासाठी</h4>
-                    <ul className="space-y-3 text-stone-600 text-sm">
-                      <li className="flex gap-2"><span>✅</span> चहा किंवा कॉफीमध्ये साखर पूर्णपणे बंद करा.</li>
-                      <li className="flex gap-2"><span>✅</span> गव्याच्या पोळीपेक्षा नाचणी किंवा ज्वारीची भाकरी उत्तम.</li>
-                      <li className="flex gap-2"><span>✅</span> जेवणानंतर लगेच बसू नका, किमान १० मिनिटे चाला.</li>
+                <div className="space-y-6 animate-in">
+                  <div className="bg-white p-8 rounded-[40px] border-l-8 border-emerald-500 custom-shadow">
+                    <h4 className="text-2xl font-bold text-emerald-900 mb-6 font-serif">🫀 कोलेस्ट्रॉल</h4>
+                    <ul className="space-y-4 text-stone-700 text-sm leading-relaxed">
+                      <li>✅ रोज ३० मिनीटे चालावे.</li>
+                      <li>✅ फायबरयुक्त भाज्या जास्त खा.</li>
+                      <li>✅ तेल आणि तूप पूर्णपणे टाळा.</li>
                     </ul>
                   </div>
                 </div>
               `}
 
               ${activeTab === 'stats' && html`
-                <div className="bg-white p-8 rounded-[32px] shadow-sm text-center">
-                  <h3 className="text-2xl font-serif font-bold mb-6">डॉक्टरांचा '५०-२५-२५' नियम</h3>
+                <div className="bg-white p-10 rounded-[40px] custom-shadow text-center animate-in">
+                  <h3 className="text-3xl font-serif font-bold mb-8 text-stone-900">५०-२५-२५ नियम</h3>
                   <${ThaliChart} />
-                  <div className="mt-8 space-y-4 text-left">
-                    <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                      <p className="font-bold text-emerald-800">५०% भाज्या/फळे:</p>
-                      <p className="text-xs text-stone-500">फायबरमुळे कोलेस्ट्रॉल नियंत्रणात राहते.</p>
+                </div>
+              `}
+
+              ${activeTab === 'settings' && html`
+                <div className="bg-white p-8 rounded-[40px] custom-shadow animate-in">
+                  <h3 className="text-2xl font-serif font-bold mb-6">ॲप सेटिंग्स</h3>
+                  <div className="space-y-6">
+                    <div>
+                        <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Gemini API Key</label>
+                        <input 
+                            type="password" 
+                            value=${manualKey} 
+                            onChange=${(e) => setManualKey(e.target.value)}
+                            placeholder="तुमची API Key येथे पेस्ट करा..." 
+                            className="w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl text-sm focus:ring-2 focus:ring-orange-500 outline-none transition-all"
+                        />
                     </div>
-                    <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                      <p className="font-bold text-orange-800">२५% प्रथिने:</p>
-                      <p className="text-xs text-stone-500">डाळी आणि कडधान्ये शरीराला ताकद देतात.</p>
+                    <div className="p-4 bg-blue-50 rounded-2xl text-blue-800 text-xs leading-relaxed">
+                        <p className="font-bold mb-1">टीप:</p>
+                        ही की तुमच्या ब्राउझरमध्ये सुरक्षितपणे वापरली जाईल. की मिळवण्यासाठी <a href="https://aistudio.google.com/app/apikey" target="_blank" className="underline font-bold">Google AI Studio</a> ला भेट द्या.
                     </div>
-                    <div className="p-4 bg-yellow-50 rounded-2xl border border-yellow-100">
-                      <p className="font-bold text-yellow-800">२५% कार्बोहायड्रेट्स:</p>
-                      <p className="text-xs text-stone-500">भाकरी किंवा हातसडीचा तांदूळ साखर वाढू देत नाही.</p>
-                    </div>
+                    <button onClick=${() => { setHasApiKey(!!manualKey); setActiveTab('plan'); }} className="w-full bg-stone-900 text-white py-4 rounded-2xl font-bold active:scale-95 transition-all">
+                        सेव्ह करा आणि सुरू करा
+                    </button>
                   </div>
                 </div>
               `}
 
-              <footer className="mt-12 text-center text-stone-300 text-[10px] font-bold uppercase tracking-widest">
-                आईच्या उत्तम आरोग्यासाठी ❤️ २०२४
+              <footer className="mt-20 text-center">
+                <p className="text-stone-300 text-[10px] font-black uppercase tracking-[0.3em]">
+                    आईच्या उत्तम आरोग्यासाठी समर्पित ❤️
+                </p>
               </footer>
             </div>
           `;

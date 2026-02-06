@@ -1,1 +1,320 @@
-Hello
+
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>आईची स्वास्थ्य थाळी - महाराष्ट्रीयन मील प्लॅनर</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@19.2.4",
+        "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
+        "@google/genai": "https://esm.sh/@google/genai@1.40.0",
+        "recharts": "https://esm.sh/recharts@3.7.0",
+        "htm": "https://esm.sh/htm@3.1.1"
+      }
+    }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fcfaf7;
+            font-size: 18px;
+            color: #1a1a1a;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .recharts-legend-item-text { font-size: 14px !important; font-weight: 600 !important; }
+        html { scroll-behavior: smooth; }
+        .animate-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="module">
+        import React, { useState, useEffect, useCallback } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { GoogleGenAI, Type } from "@google/genai";
+        import * as Recharts from 'recharts';
+        import htm from 'htm';
+
+        const { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } = Recharts;
+        const html = htm.bind(React.createElement);
+
+        // --- CONSTANTS & CONFIG ---
+        const COLORS = { veggie: '#10b981', fruit: '#ec4899', protein: '#f97316', carb: '#eab308', other: '#94a3b8' };
+
+        const INVENTORY = {
+          rashan: { title: "धान्य", items: ["ज्वारी", "बाजरी", "नाचणी", "गहू", "हातसडीचा तांदूळ", "वरई"] },
+          pulses: { title: "कडधान्ये/डाळी", items: ["मटकी", "मूग", "तूर डाळ", "हरभरा", "कुळीथ", "वाटाणा"] },
+          veggies: { title: "भाज्या", items: ["मेथी", "पालक", "दोडका", "भेंडी", "दुधी", "कोबी", "कारले", "गवार", "वांगी"] },
+          other: { title: "इतर", items: ["दही", "ताक", "लसूण", "आले", "मेथी दाणे", "आमसूल"] }
+        };
+
+        const MEAL_ITEM_SCHEMA = {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            category: { type: Type.STRING, enum: ['veggie', 'protein', 'carb', 'fruit', 'other'] },
+            description: { type: Type.STRING },
+            recipe: { type: Type.STRING }
+          },
+          required: ["name", "category", "description", "recipe"]
+        };
+
+        const MEAL_SCHEMA = {
+          type: Type.OBJECT,
+          properties: {
+            time: { type: Type.STRING },
+            items: { type: Type.ARRAY, items: MEAL_ITEM_SCHEMA },
+            healthTip: { type: Type.STRING },
+            nutritionFocus: { type: Type.STRING }
+          },
+          required: ["time", "items", "healthTip", "nutritionFocus"]
+        };
+
+        const MEAL_PLAN_SCHEMA = {
+          type: Type.OBJECT,
+          properties: {
+            meals: {
+              type: Type.OBJECT,
+              properties: {
+                breakfast: MEAL_SCHEMA,
+                lunch: MEAL_SCHEMA,
+                eveningSnack: MEAL_SCHEMA,
+                dinner: MEAL_SCHEMA
+              },
+              required: ["breakfast", "lunch", "eveningSnack", "dinner"]
+            }
+          },
+          required: ["meals"]
+        };
+
+        // --- COMPONENTS ---
+
+        const ThaliChart = () => {
+          const data = [
+            { name: 'भाज्या (५०%)', value: 50, color: COLORS.veggie },
+            { name: 'प्रथिने (२५%)', value: 25, color: COLORS.protein },
+            { name: 'कार्ब्स (२५%)', value: 25, color: COLORS.carb },
+          ];
+          return html`
+            <div className="h-64 w-full">
+              <${ResponsiveContainer} width="100%" height="100%">
+                <${PieChart}>
+                  <${Pie} data=${data} cx="50%" cy="50%" innerRadius=${60} outerRadius=${80} paddingAngle=${5} dataKey="value">
+                    ${data.map((entry, index) => html`<${Cell} key=${`cell-${index}`} fill=${entry.color} />`)}
+                  <//>
+                  <${Tooltip} />
+                  <${Legend} />
+                <//>
+              <//>
+            </div>
+          `;
+        };
+
+        const ThaliCard = ({ meal, type }) => {
+          if (!meal) return null;
+          const icons = { breakfast: '🌅', lunch: '☀️', eveningSnack: '☕', dinner: '🌙' };
+          const labels = { breakfast: 'न्याहारी', lunch: 'दुपारचे जेवण', eveningSnack: 'नाश्ता', dinner: 'रात्रीचे जेवण' };
+
+          return html`
+            <div className="mb-8 animate-in">
+              <div className="flex items-center gap-4 mb-4">
+                <span className="text-4xl">${icons[type]}</span>
+                <div>
+                  <h3 className="text-2xl font-serif font-bold text-stone-900">${labels[type]}</h3>
+                  <p className="text-stone-400 font-bold text-sm uppercase tracking-tighter">${meal.time}</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-[32px] p-6 shadow-sm border border-stone-100">
+                <div className="mb-4 inline-block bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold border border-emerald-100">
+                  ${meal.nutritionFocus}
+                </div>
+                <div className="space-y-4">
+                  ${meal.items?.map((item, idx) => html`
+                    <div key=${idx} className=${`p-4 rounded-2xl border-l-4 ${item.category === 'veggie' ? 'border-emerald-500 bg-emerald-50' : item.category === 'protein' ? 'border-orange-500 bg-orange-50' : 'border-yellow-500 bg-yellow-50'}`}>
+                      <h4 className="font-bold text-stone-800 text-lg mb-1">${item.name}</h4>
+                      <p className="text-stone-600 text-sm mb-2">${item.description}</p>
+                      ${item.recipe && html`<p className="text-xs text-stone-400 italic mt-2 pt-2 border-t border-stone-200"><span className="font-bold">कृती:</span> ${item.recipe}</p>`}
+                    </div>
+                  `)}
+                </div>
+                <div className="mt-5 p-4 bg-blue-50 rounded-2xl text-blue-800 text-sm">
+                  💡 <b>टिप:</b> ${meal.healthTip}
+                </div>
+              </div>
+            </div>
+          `;
+        };
+
+        const App = () => {
+          const [activeTab, setActiveTab] = useState('plan');
+          const [loading, setLoading] = useState(true);
+          const [mealPlan, setMealPlan] = useState(null);
+          const [error, setError] = useState(null);
+          const [selected, setSelected] = useState(new Set());
+
+          const fetchPlan = useCallback(async () => {
+            setLoading(true);
+            setError(null);
+            try {
+              const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+              const itemsStr = Array.from(selected).join(", ");
+              const prompt = `तुम्ही एक महाराष्ट्रीयन आहारतज्ज्ञ आहात. ५० वर्षांच्या आईसाठी ज्यांना कोलेस्ट्रॉल आणि मधुमेह आहे, त्यांच्यासाठी १ दिवसाचा '५०-२५-२५' थाळी नियम पाळून मील प्लॅन तयार करा. उपलब्ध साहित्य: ${itemsStr || "घरातील सर्व महाराष्ट्रीयन धान्य आणि भाज्या"}. सर्व माहिती मराठीत असावी. ५०% भाज्या, २५% प्रथिने आणि २५% कार्बोहायड्रेट्स या प्रमाणात पदार्थ निवडा.`;
+
+              const response = await ai.models.generateContent({
+                model: "gemini-3-flash-preview",
+                contents: prompt,
+                config: { 
+                    responseMimeType: "application/json", 
+                    responseSchema: MEAL_PLAN_SCHEMA
+                }
+              });
+
+              if (response.text) {
+                setMealPlan(JSON.parse(response.text));
+              }
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (err) {
+              console.error(err);
+              setError("नियोजन करताना अडचण आली, पुन्हा प्रयत्न करा.");
+            } finally {
+              setLoading(false);
+            }
+          }, [selected]);
+
+          useEffect(() => { fetchPlan(); }, []);
+
+          const toggle = (item) => {
+            const next = new Set(selected);
+            if (next.has(item)) next.delete(item); else next.add(item);
+            setSelected(next);
+          };
+
+          if (loading) return html`
+            <div className="min-h-screen flex flex-col items-center justify-center p-10 bg-stone-50">
+              <div className="w-12 h-12 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin mb-4"></div>
+              <h2 className="text-xl font-serif font-bold text-stone-800 text-center">आईसाठी खास स्वास्थ्य थाळी तयार होत आहे...</h2>
+            </div>
+          `;
+
+          return html`
+            <div className="max-w-lg mx-auto px-4 py-8 pb-24">
+              <header className="text-center mb-8">
+                <h1 className="text-4xl font-serif font-bold text-stone-900 mb-2">आईची स्वास्थ्य थाळी</h1>
+                <p className="text-emerald-700 text-xs font-bold uppercase tracking-widest">कोलेस्ट्रॉल आणि मधुमेह व्यवस्थापन</p>
+              </header>
+
+              <nav className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-stone-200 mb-8 sticky top-4 z-50">
+                ${['plan', 'tips', 'stats'].map(t => html`
+                  <button key=${t} onClick=${() => setActiveTab(t)} className=${`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === t ? 'bg-orange-600 text-white shadow-md' : 'text-stone-400 hover:text-stone-600'}`}>
+                    ${t === 'plan' ? 'आजचा आहार' : t === 'tips' ? 'आरोग्य टिप्स' : 'नियम'}
+                  </button>
+                `)}
+              </nav>
+
+              ${error && html`
+                <div className="bg-red-50 text-red-700 p-4 rounded-2xl mb-8 text-center text-sm border border-red-100">
+                  ${error} <button onClick=${fetchPlan} className="underline font-bold ml-2">पुन्हा प्रयत्न करा</button>
+                </div>
+              `}
+
+              ${activeTab === 'plan' && html`
+                <div>
+                  <section className="bg-white rounded-[32px] p-6 shadow-sm border border-stone-100 mb-8">
+                    <h3 className="text-xl font-bold mb-4 font-serif">🏠 काय उपलब्ध आहे?</h3>
+                    <div className="space-y-6">
+                      ${Object.entries(INVENTORY).map(([key, cat]) => html`
+                        <div key=${key}>
+                          <p className="text-[10px] font-black text-stone-300 uppercase mb-2">${cat.title}</p>
+                          <div className="flex flex-wrap gap-2">
+                            ${cat.items.map(item => html`
+                              <button key=${item} onClick=${() => toggle(item)} className=${`px-3 py-1.5 rounded-xl border text-sm font-semibold transition-all ${selected.has(item) ? 'bg-orange-600 text-white border-orange-600 shadow-sm' : 'bg-stone-50 text-stone-600 border-stone-200 hover:border-orange-200'}`}>
+                                ${item}
+                              </button>
+                            `)}
+                          </div>
+                        </div>
+                      `)}
+                      <button onClick=${fetchPlan} className="w-full bg-stone-900 text-white py-4 rounded-2xl font-bold text-lg shadow-xl active:scale-95 hover:bg-stone-800 transition-all">✨ थाळी अपडेट करा</button>
+                    </div>
+                  </section>
+
+                  ${mealPlan?.meals && html`
+                    <div className="space-y-4">
+                      <${ThaliCard} meal=${mealPlan.meals.breakfast} type="breakfast" />
+                      <${ThaliCard} meal=${mealPlan.meals.lunch} type="lunch" />
+                      <${ThaliCard} meal=${mealPlan.meals.eveningSnack} type="eveningSnack" />
+                      <${ThaliCard} meal=${mealPlan.meals.dinner} type="dinner" />
+                    </div>
+                  `}
+                </div>
+              `}
+
+              ${activeTab === 'tips' && html`
+                <div className="space-y-6">
+                  <div className="bg-white p-6 rounded-[32px] border-t-8 border-emerald-500 shadow-sm">
+                    <h4 className="text-xl font-bold text-emerald-800 mb-4 font-serif">❤️ कोलेस्ट्रॉलसाठी</h4>
+                    <ul className="space-y-3 text-stone-600 text-sm">
+                      <li className="flex gap-2"><span>✅</span> रोजच्या आहारात लसणाच्या २ पाकळ्या कोमट पाण्यासोबत घ्या.</li>
+                      <li className="flex gap-2"><span>✅</span> ओला नारळ आणि शेंगदाण्याचा वापर ५०% कमी करा.</li>
+                      <li className="flex gap-2"><span>✅</span> तेलाऐवजी भाजलेले किंवा उकडलेले पदार्थ जास्त खा.</li>
+                    </ul>
+                  </div>
+                  <div className="bg-white p-6 rounded-[32px] border-t-8 border-orange-500 shadow-sm">
+                    <h4 className="text-xl font-bold text-orange-800 mb-4 font-serif">🩸 मधुमेहासाठी</h4>
+                    <ul className="space-y-3 text-stone-600 text-sm">
+                      <li className="flex gap-2"><span>✅</span> चहा किंवा कॉफीमध्ये साखर पूर्णपणे बंद करा.</li>
+                      <li className="flex gap-2"><span>✅</span> गव्याच्या पोळीपेक्षा नाचणी किंवा ज्वारीची भाकरी उत्तम.</li>
+                      <li className="flex gap-2"><span>✅</span> जेवणानंतर लगेच बसू नका, किमान १० मिनिटे चाला.</li>
+                    </ul>
+                  </div>
+                </div>
+              `}
+
+              ${activeTab === 'stats' && html`
+                <div className="bg-white p-8 rounded-[32px] shadow-sm text-center">
+                  <h3 className="text-2xl font-serif font-bold mb-6">डॉक्टरांचा '५०-२५-२५' नियम</h3>
+                  <${ThaliChart} />
+                  <div className="mt-8 space-y-4 text-left">
+                    <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                      <p className="font-bold text-emerald-800">५०% भाज्या/फळे:</p>
+                      <p className="text-xs text-stone-500">फायबरमुळे कोलेस्ट्रॉल नियंत्रणात राहते.</p>
+                    </div>
+                    <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                      <p className="font-bold text-orange-800">२५% प्रथिने:</p>
+                      <p className="text-xs text-stone-500">डाळी आणि कडधान्ये शरीराला ताकद देतात.</p>
+                    </div>
+                    <div className="p-4 bg-yellow-50 rounded-2xl border border-yellow-100">
+                      <p className="font-bold text-yellow-800">२५% कार्बोहायड्रेट्स:</p>
+                      <p className="text-xs text-stone-500">भाकरी किंवा हातसडीचा तांदूळ साखर वाढू देत नाही.</p>
+                    </div>
+                  </div>
+                </div>
+              `}
+
+              <footer className="mt-12 text-center text-stone-300 text-[10px] font-bold uppercase tracking-widest">
+                आईच्या उत्तम आरोग्यासाठी ❤️ २०२४
+              </footer>
+            </div>
+          `;
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>
